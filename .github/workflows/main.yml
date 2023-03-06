@@ -1,0 +1,53 @@
+name: CI/CD Docker
+
+# 트리거를 수행할 브랜치를 지정합니다.
+on:
+  push:
+    branches: [ master ]
+
+# 환경설정
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.actor }}/python_action_test
+  VERSION: ${{ github.sha }}
+  NAME: python_action_test
+
+jobs:
+  # Build Job
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    
+      # github repository에서 checkout
+      - uses: actions/checkout@v3
+      
+      # docker build 수행
+      - name: Set up docker buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2.4.1
+        
+      - name: Cache docker layers
+        uses: actions/cache@v3.2.6
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ env.VERSION }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+            
+      # GitHub 컨테이너 레지스트리에 로그인 후 빌드 & 푸시
+      - name: Login to ghcr
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+          
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v4.0.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}:latest
+          
+ 
